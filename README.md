@@ -1,10 +1,9 @@
 # Getting started 
 
-'https://youtube.com/playlist?list=PLvPRqTZ5Cxw5uxJ0_VKOUc0t5b6_IpBNS&si=Mioi43YxTLh4UYX2'
+Guide used to implement the testos: `https://youtube.com/playlist?list=PLvPRqTZ5Cxw5uxJ0_VKOUc0t5b6_IpBNS&si=Mioi43YxTLh4UYX2`
 
 
-Instructions with the relevant implementations are found in the folder 'Documents'
-
+Instructions with the relevant implementations are found in the folder `Documents`
 
 References used: 
 -   RISC-V specifications: https://riscv.org/technical/specifications/
