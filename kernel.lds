@@ -25,7 +25,7 @@ PHDRS
 SECTIONS
 {
 
-/* Declare a address where the functions can be accessed by the linker script from the declared >RAM. 
+/* Declare a address where the functions can be accessed by the linker script from the declared >RAM. */ 
   .text : {
     PROVIDE(_text_start = .);
     *(.text.init) *(.text .text.*)
