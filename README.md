@@ -9,6 +9,7 @@ References used:
 -   RISC-V specifications: https://riscv.org/technical/specifications/
 -   Qemu instructions for compiling/installing: https://www.qemu.org/docs/master/system/riscv/virt.html
 -   Reference to RISC-V emulator: https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c
+-   Hardware manuals for Qemu: https://wiki.qemu.org/Documentation/HardwareManuals 
 
 Commands used:
 -   Compilation: `riscv64-unknown-elf-as <Bootloader_file.S> -o <output_file_name.o>`
