@@ -89,7 +89,7 @@ _announce:
     la t2, _lock            # load t2 with address of _lock
     sw t1, 0(t2)            # store value of t1 to address of t2
     la t0, _lock            # Load t0 with the address of lock
-    lw t1, 0(t0)            # Load t1 with the  
+    lw t1, 0(t0)            # Load t1 with the value stored in the address of t0  
 
     fence
 
