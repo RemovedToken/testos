@@ -60,6 +60,8 @@ _write_uart:
 _write_uart_end:
     ret                         # Return to _start
 
+
+# Function for all HARTs to announce themselves
 _announce: 
     fence
     la t0, _lock
