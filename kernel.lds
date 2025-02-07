@@ -55,4 +55,14 @@ SECTIONS
 
  /* This tells the kernel where the ram starts */
   PROVIDE(_memory_start = ORIGIN(ram));
+  
+  /* Telling the kernel where the memory ends */
+  PROVIDE(_memory_end = ORIGIN(ram) + LENGTH(ram));
+  
+  /*Telling the kernel where the heap ends */ 
+  PROVIDE(_heap_end = _memory_end - 4096);
+
+  /* Heap counter */
+  PROVIDE(_heap_counter = _heap_end + 8);
+
 }
