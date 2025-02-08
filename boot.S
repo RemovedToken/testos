@@ -1,18 +1,11 @@
 .option norvc
 
-# Macro to push data
-.macro push reg 
-        sd \reg, 0(sp)
-        li t0, 8
-        add sp, sp, t0
-.endm
 
-# Macro to pop data
-.macro pop reg
-        li t0, -8
-        add sp, sp, t0
-        ld \reg, 0(sp)
-.endm 
+
+# Macro files
+.include "MACRO.S"
+.include "UART.S"
+.include "PAGE.S"
 
 .section .data
 
@@ -92,6 +85,29 @@ _start:
 
 
     call _sanity_check      # subroutine to read the status on all registers 
+
+    call _setup_satp        # subroutine to setup SATP register
+    
+    csrr a0, satp
+    call _print_hex
+
+    la a0, _exemple_page
+    call _print_hex
+
+    li a0, 0x00
+    la a1, _exemple_page
+    li a2, 0x0F
+    call _map_to_virtual
+
+    la a0, _page_table_start
+    ld a0, 0(a0)
+    call _print_hex
+
+    li t0, 0x00
+    csrw mepc, t0
+    mret
+
+
 
     j _announce
     
@@ -181,51 +197,6 @@ _sanity_check_end:
 
 
 
-_write_newline:
-    push ra
-    call _write_uart
-    la a0, newline
-    call _write_uart
-    pop ra
-    ret
-
-
-_setup_uart:
-    li t1, 0x10000001       # Access interrupt register on UART + 1  
-    sb x0, 0(t1)            # Disable the interrupts on the UART
-    li t1, 0x10000003       # Access line control with the UART address + 3 
-    li t2, 0x03             # Configure the UART to 8 bits no parity 
-    ret                     # Return to _start 
-
-_write_uart_char:
-    push ra
-    li t1, 0x10000000
-    lb t2, 0(a0)
-    sb t2, 0(t1)
-    pop ra
-    ret  
-
-_write_uart:
-    push ra
-
-_write_uart_loop:
-    li t1, 0x10000005           # Load the UART address and check if it is free 
-    lb t2, 0(t1)                # Load t2 with the byte in reg. a0
-    li t3, 0x20                 # Load t3 with the ascii value of space
-    and t2, t3, t1              # Check if the UART is empty by checking if the ascii value of space is available
-    beqz t1, _write_uart_loop   # Jump to end when t2 is empty
-    li t1, 0x10000000           # Load the UART address
-    lb t2, 0(a0)                # Send data stored in a0 to the address
-    beqz t2, _write_uart_end    # Jump to end if there is no data to be written
-    sb t2, 0(t1)                # Store the byte in t2 to the address of t1
-    li t2, 1
-    add a0, t2, a0              # Incremeant the address in a0 with 1 
-    j _write_uart_loop          # Jump to the start of _write_uart
-
-_write_uart_end:
-    pop ra
-    ret                         # Return to _start
-
 
 _debug_misa:    # Debugging misa register that stores data regarding the ISA supported 
     push ra
@@ -280,7 +251,7 @@ _announce:
     csrr t1, mhartid        # Get the hardware ID 
     bne t0, t1, _announce   # Branch back to announce if the hardware ID is not 0   
 
-    # Announce which hart ID
+    # Announce which hart IDadd
     la a0, iamhart
     call _write_uart
 
@@ -334,3 +305,27 @@ _print_hex_loop:
     call _write_uart
     pop ra 
     ret
+
+
+_zalloc: 
+    la a1, _heap_counter
+    ld t0, 0(a1)            # Load the heap counter defined in the linker file
+
+    li t1, 1
+    add t0, t0, t1
+    sd t0, 0(a1)            # Incremeant the counter to allocate the pages
+
+    la t1, _heap_end        # Locate the current position of the end of the heap
+    li t2, 4096             # The end of the heap is located at 4096 from the end of memory
+    mul t2, t0, t2          # Multiply the heap location with the total amount of heaps
+    sub a0, t1, t2          # Subtract the total amount of heaps with the end of the heap to store in the pages
+    ret
+
+.align 12
+_exemple_page:
+    ecall
+    .skip 4096
+
+.align 12
+_page_table_start:
+    .skip 4096
