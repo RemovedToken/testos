@@ -102,7 +102,7 @@ _start:
     #la a0, _exemple_page
     #call _print_hex
 
-    la a0, _data_start
+    la a0, _data_start  
     call _print_hex
 
     # Identity map data for both virtual and physical pages
