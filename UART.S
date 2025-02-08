@@ -1,3 +1,4 @@
+.align 12
 _write_newline:
     push ra
     call _write_uart

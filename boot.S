@@ -4,8 +4,7 @@
 
 # Macro files
 .include "MACRO.S"
-.include "UART.S"
-.include "PAGE.S"
+
 
 .section .data
 
@@ -22,6 +21,14 @@ mpp_mmode: .ascii "MPP Mode: Machine \0"
 mpp_smode: .ascii "MPP Mode: Supervisor \0"
 interrupts_status: .ascii "Interrupts:\0"
 
+data_section_address: .ascii "Data: \0"
+write_uart_address: .ascii "Uart: \0"
+
+
+walkingpagetables: .ascii "Walking Page Tables...\0"
+endwalkingpagetables: .ascii "Walking Page Tables Complete\0"
+
+
 machninemode: .ascii "Mode: Machine \0"
 interrupts_on: .ascii "interrupts: "
 
@@ -34,6 +41,7 @@ _lock:
 _temp_memory:
     .skip 1024,0  # 1024 words
 
+.align 12
 
 _stacks:
     .skip 8192, 0 # Creating a dedicated stack memory 
@@ -88,22 +96,61 @@ _start:
 
     call _setup_satp        # subroutine to setup SATP register
     
-    csrr a0, satp
+    #csrr a0, satp
+    #call _print_hex
+
+    #la a0, _exemple_page
+    #call _print_hex
+
+    la a0, _data_start
     call _print_hex
 
+    # Identity map data for both virtual and physical pages
+    la a0, _data_start
+    la a1, _data_start
+    li a2, 0x07
+    call _map_to_virtual
+
+    # Identity map data for functions for both virtual and physical pages
+    la a0, _stacks
+    la a1, _stacks
+    li a2, 0x0F
+    call _map_to_virtual
+
+    # Identity map the UART ports
+    li a0, 0x10000000
+    li a1, 0x10000000
+    li a2, 0x0F
+    call _map_to_virtual
+
+    # Identity map the UART functions
+    la a0, _write_uart
+    la a1, _write_uart
+    li a2, 0x0F
+    call _map_to_virtual
+
+    # virtual map of an example page
     la a0, _exemple_page
-    call _print_hex
-
-    li a0, 0x00
     la a1, _exemple_page
     li a2, 0x0F
     call _map_to_virtual
 
-    la a0, _page_table_start
-    ld a0, 0(a0)
-    call _print_hex
+    #li a0, 0x00
+    #la a1, _exemple_page
+    #li a2, 0x0F
+    #call _map_to_virtual
 
-    li t0, 0x00
+    la a0, _page_table_start
+    li a1, 2
+    call _walk_page_tables
+
+    la a0, endwalkingpagetables
+    call _write_newline
+
+
+    #li t0, 0x00
+    
+    la t0, _exemple_page
     csrw mepc, t0
     mret
 
@@ -112,6 +159,9 @@ _start:
     j _announce
     
     wfi
+
+.include "PAGE.S"
+.include "UART.S"
 
 
 _supervisor_trap:
@@ -307,7 +357,7 @@ _print_hex_loop:
     ret
 
 
-_zalloc: 
+_kalloc: 
     la a1, _heap_counter
     ld t0, 0(a1)            # Load the heap counter defined in the linker file
 
@@ -323,7 +373,11 @@ _zalloc:
 
 .align 12
 _exemple_page:
-    ecall
+    la a0, supervisormodeentry
+    call _write_uart
+    la a0, _page_table_start
+    ld a0, 0(a0)
+    wfi
     .skip 4096
 
 .align 12
