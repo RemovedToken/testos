@@ -23,7 +23,21 @@ _setup_satp:
 # a0: Virtual Page
 # a1: Physical Page
 # a2: Read/write/Execute bits
-_map_to_virtual:    
+_map_to_virtual:
+    push t0
+    push t1
+    push t2
+    push t3
+    push t4
+    push t5
+    push t6
+    push a0
+    push a1
+    push a2
+    push a3
+    push a4
+    push a5
+    push a6    
     push ra
 
     # Calculate the first PTE fo the VA
@@ -133,10 +147,24 @@ _map_level_0:
     # register a1 has the physical page address that is to be mapped
     # Pages can be alighed by 4KB meaning we can shift by 2
     
-    srli a1, a1, 2  # Shift the physical page addresses by 2
+    srli a1, a1, 12  # Shift the physical page addresses by 12
+    slli a1, a1, 10
     or a1, a1, a2   # PPN | Permission bits
     sd a1, 0(a0)
     pop ra
+    pop a5
+    pop a4
+    pop a3
+    pop a2
+    pop a1
+    pop a0
+    pop t6
+    pop t5
+    pop t4
+    pop t3
+    pop t2
+    pop t1
+    pop t0
     ret
     
 

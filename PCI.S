@@ -1,58 +1,136 @@
 # The PCI express address is located on 0x30000000
 # Register a0 will contain the PCIE ECAM address
-_list_pci_device: 
-    push ra         # Store the return addresses
-    li t0, 0        # Load 0
 
-    _iterate_devices:
-    li t1, 0
-    li t2, 1
 
-    mv a0, t0
-    mv a1, t1
-    mv a2, x0
+_format_scratch:
+    .skip 32
+
+
+_setup_PCI:
+    push ra
+
+    # Dump all devices connected to the PCI Express lane
+    la a0, pcidevices
+    call _write_newline
+
+    # Printing the Tables
+    la a0, pcivendorid
+    call _write_uart
+    la a0, tablespace
+    call _write_uart
+    la a0, tablespace
+    call _write_uart
+    la a0, tablespace
+    call _write_uart
+    la a0, tablespace
+    call _write_uart
+    la a0, pcideviceid
+    call _write_newline
+
+
+    la a0, tableheader
+    call _write_newline
+
+    li t0, 0
+
+    _iterate_pci:
+    li a0, 0x30000000       # Actual PCI express address
+    add a0, a0, t0
+    ld a0, 0(a0)
+
+    li t1, 0xFFFF
+    and t2, a0, t1
+
+    srli t3, a0, 16
+    and t3, t3, t1
+
+    li t4, 0xFFFF
+    beq t2, t4, _iterate_pci_cont
+
     push t0
-    push t1
     push t2
-    call _read_pci
-    call _print_hex
+    push t3
+    mv a0, t2
+    la a1, _format_scratch
+    call _format_hex
+    la a0, _format_scratch
+    call _write_uart
+
+    la a0, tablespace
+    call _write_uart
+
+
+    pop t3
+    mv a0, t3
+    push t3
+    la a1, _format_scratch
+    call _format_hex
+    la a0, _format_scratch
+    call _write_newline
+    pop t3
     pop t2
-    pop t1
     pop t0
 
+
+    la a0, _pci_reg
+    li a1, 0
+    _iterate_table:
+        lw a3, 0(a0)
+        mv a4, t2
+        slli a4, a4, 16
+        or a4, a4, t3
+        bne a3, a4, _iterate_table_cont
+        addi a4, a0, 4
+
+        push a0
+        push a1
+        push t0
+        push t2
+        push t3
+        li a0, 0x30000000
+        add a0, t0, a0
+        jalr ra, a4
+        pop t3
+        pop t2
+        pop t0
+        pop a1
+        pop a0
+
+        _iterate_table_cont:
+            addi a1, a1, 1
+            addi a0, a0, 8
+            li a2, 2
+            bne a1, a2, _iterate_table
+
+    _iterate_pci_cont:
+    li t1, 4096
+    add t0, t0, t1
+    li t1, 0x10000000
+    bne t0, t1, _iterate_pci
     pop ra
     ret
 
-
-# We will store: 
-# a0: PCI bus
-# a1: Device 
-# a2: Function
-# a3: Offset
-_build_PCI_address:
-    li t0, 0x40000000
-    slli  a0, a0, 16    # Access Bus number
-    slli  a1, a1, 11    # Access the device number
-    slli  a2, a2, 8     # Access the function number
-    add a0, a0, t0      # Store the PCI bus to a0
-    add a0, a0, a1      # Store the bus number
-    add a0, a0, a2      # Store the device 
-    add a0, a0, a3      # Store the offset
-    ret
-
-# a0 will store the PCI bus
-# a1 will store the PCI device
-# a2 will store the offset
-_read_pci: 
-    push ra
-    mv a3, a2               # Store the old offset
-    mv a2, x0               # Zero the a2 register
-    call _build_PCI_address # start building the address
+_pci_reg:
     
-    # Since a0 has the address, it needs to be configured
-    li t0, 0xCF8       # Location of the configuration address
-    sd a0, 0(t0)       # Store the configuration address to the PCI address
-    li t0, 0xCFC       # Location of the configuration data
-    ld a0, 0(t0)       # Load the configuration data to the PCI address
+    # PCI Device Bridge
+    .byte 0x00, 0x08, 0x36, 0x1B
+    j _setup_qemu_bridge
+
+    # QEMU VGA
+    j _setup_qemu_vga
+
+
+_setup_qemu_bridge:
+    push ra
+    la a0, setup_qemu_pci_bridge
+    call _write_newline
     pop ra
     ret
+
+#_setup_qemu_vga:
+ #   push ra
+  #  la a0, setup_qemu_vga
+   # call _write_newline
+    #pop ra 
+    #ret
+

@@ -65,4 +65,9 @@ SECTIONS
   /* Heap counter */
   PROVIDE(_heap_counter = _heap_end + 8);
 
+
+  /* VGA location */
+  PROVIDE(_vga_framebuffer = 0x50000000);
+  PROVIDE(_vga_mmio = 0x40000000);
+
 }

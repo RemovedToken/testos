@@ -11,6 +11,7 @@
 welcome: .ascii "Welcome to testos\n\0"
 iamhart: .ascii "I am HART \0"
 newline: .ascii "\n\0"
+tablespace: .ascii "      \0"
 trapwarning: .ascii "WARNING!\0"
 twisset: .ascii "TW bit is set!\0"
 
@@ -29,8 +30,17 @@ walkingpagetables: .ascii "Walking Page Tables...\0"
 endwalkingpagetables: .ascii "Walking Page Tables Complete\0"
 
 
-machninemode: .ascii "Mode: Machine \0"
-interrupts_on: .ascii "interrupts: "
+pcidevices: .ascii "PCI Devices\0"
+pcivendorid: .ascii "Vendor\0"
+pcideviceid: .ascii "Device\0"
+tableheader: .ascii "--------------------------------\0"
+
+setup_qemu_pci_bridge: .ascii "Identified QEMU PCI Bridge...\0"
+setup_qemu_vga: .ascii "Setting Up QEMU VGA...\0"
+
+
+#machninemode: .ascii "Mode: Machine \0"
+#interrupts_on: .ascii "Interrupts: "
 
 hextable: .ascii "0123456789ABCDEF"
 
@@ -42,7 +52,6 @@ _temp_memory:
     .skip 1024,0  # 1024 words
 
 .align 12
-
 _stacks:
     .skip 8192, 0 # Creating a dedicated stack memory 
 
@@ -59,6 +68,7 @@ _start:
     li t2, 1024             # load stack value to 42
     mul t3, t2, t0          # distribute allocate stack space based on the available hardware threads
     add sp, t3, t1          # load space value to stackpointer 
+   
     bnez t0, _announce      # Branch to _announce if the hardware ID is not equal to 0
 
 
@@ -102,8 +112,11 @@ _start:
     #la a0, _exemple_page
     #call _print_hex
 
+    # String address of Supervisor
     la a0, _data_start  
     call _print_hex
+
+    call _setup_PCI
 
     # Identity map data for both virtual and physical pages
     la a0, _data_start
@@ -111,19 +124,19 @@ _start:
     li a2, 0x07
     call _map_to_virtual
 
-    # Identity map data for functions for both virtual and physical pages
+    # Identity map for functions for both virtual and physical pages
     la a0, _stacks
     la a1, _stacks
     li a2, 0x0F
     call _map_to_virtual
 
-    # Identity map the UART ports
+    # Identity map for the UART ports
     li a0, 0x10000000
     li a1, 0x10000000
     li a2, 0x0F
     call _map_to_virtual
 
-    # Identity map the UART functions
+    # Identity map for the UART functions
     la a0, _write_uart
     la a1, _write_uart
     li a2, 0x0F
@@ -135,10 +148,8 @@ _start:
     li a2, 0x0F
     call _map_to_virtual
 
-    #li a0, 0x00
-    #la a1, _exemple_page
-    #li a2, 0x0F
-    #call _map_to_virtual
+    la a0, walkingpagetables
+    call _write_newline
 
     la a0, _page_table_start
     li a1, 2
@@ -147,21 +158,60 @@ _start:
     la a0, endwalkingpagetables
     call _write_newline
 
+    call _setup_PCI
 
-    #li t0, 0x00
-    
     la t0, _exemple_page
     csrw mepc, t0
     mret
 
 
 
-    j _announce
+    #j _announce
     
     wfi
 
+
 .include "PAGE.S"
 .include "UART.S"
+.include "PCI.S"
+.include "HEX.S"
+.include "VGA.S"
+
+# Function for all HARTs to announce themselves
+_announce:
+
+    fence                   # Force all threads to execute the instructions in the programmed order
+
+    la t0, _lock            # Load the address of the dedicated lock memory to t0
+    lw t0, 0(t0)            # load the value stored in the address of t0 and t0 
+    csrr t1, mhartid        # Get the hardware ID 
+    bne t0, t1, _announce   # Branch back to announce if the hardware ID is not 0   
+
+    # Announce which hart ID
+    la a0, iamhart
+    call _write_uart
+
+
+    csrr t1, mhartid        # Get the HARTID
+    li t2, 0x30             # Load the address value for the machine status register to t2
+    add t1, t2, t1          # add the statusID of the HARTs to t1
+    la a0, _temp_memory     # Address of memory loaded to a0
+    sb t1, 0(a0)            # store Hardware IDs from t1 to the address of a0       
+    call _write_newline     # Call function to print and add new line
+    
+    
+    # Incremeant of _lock
+    csrr t0, mhartid        # Get the current HartID
+    li t1, 0x01             # Load t1 with the value of 1   
+    add t1, t0, t1          # Incremeant t0 with 1
+    la t2, _lock            # load t2 with address of _lock
+    sw t1, 0(t2)            # store value of t1 to address of t2
+    la t0, _lock            # Load t0 with the address of lock
+    lw t1, 0(t0)            # Load t1 with the value stored in the address of t0  
+
+    fence
+
+    j _wait                 # wait for interrupt 
 
 
 _supervisor_trap:
@@ -229,7 +279,7 @@ _sanity_check_interrupts:
     csrr t0, mstatus                # Load the mstatus information to t0,
     li t1, 0x8                      # Load status bit for interrupts
     and t0, t1, t2                  # Check if the interrupt is enabled
-    la a0, interrupts_on            # Load machine mode string to a0
+    la a0, interrupts_status        # Load machine mode string to a0
     call _write_uart                # Call UART subroutine
     
     li t3, 0x30             # Load the address value for the machine status register to t2
@@ -286,48 +336,7 @@ _debug_misa:    # Debugging misa register that stores data regarding the ISA sup
     call _write_uart
     pop ra
     ret
-
-
-
-
-
-# Function for all HARTs to announce themselves
-_announce:
-
-    fence                   # Force all threads to execute the instructions in the programmed order
-
-    la t0, _lock            # Load the address of the dedicated lock memory to t0
-    lw t0, 0(t0)            # load the value stored in the address of t0 and t0 
-    csrr t1, mhartid        # Get the hardware ID 
-    bne t0, t1, _announce   # Branch back to announce if the hardware ID is not 0   
-
-    # Announce which hart IDadd
-    la a0, iamhart
-    call _write_uart
-
-
-    csrr t1, mhartid        # Get the HARTID
-    li t2, 0x30             # Load the address value for the machine status register to t2
-    add t1, t2, t1          # add the statusID of the HARTs to t1
-    la a0, _temp_memory     # Address of memory loaded to a0
-    sb t1, 0(a0)            # store Hardware IDs from t1 to the address of a0       
-    call _write_newline     # Call function to print and add new line
     
-    
-    # Incremeant of _lock
-    csrr t0, mhartid        # Get the current HartID
-    li t1, 0x01             # Load t1 with the value of 1   
-    add t1, t0, t1          # Incremeant t0 with 1
-    la t2, _lock            # load t2 with address of _lock
-    sw t1, 0(t2)            # store value of t1 to address of t2
-    la t0, _lock            # Load t0 with the address of lock
-    lw t1, 0(t0)            # Load t1 with the value stored in the address of t0  
-
-    fence
-
-    j _wait                 # wait for interrupt 
-    
-
 _wait:
     wfi # wait for interrupt
 
@@ -372,6 +381,7 @@ _kalloc:
     ret
 
 .align 12
+
 _exemple_page:
     la a0, supervisormodeentry
     call _write_uart

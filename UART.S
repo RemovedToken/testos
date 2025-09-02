@@ -1,6 +1,5 @@
-.align 12
 _write_newline:
-    push ra
+    push ra 
     call _write_uart
     la a0, newline
     call _write_uart
