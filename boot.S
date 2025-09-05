@@ -116,8 +116,6 @@ _start:
     la a0, _data_start  
     call _print_hex
 
-    call _setup_PCI
-
     # Identity map data for both virtual and physical pages
     la a0, _data_start
     la a1, _data_start
@@ -173,8 +171,8 @@ _start:
 
 .include "PAGE.S"
 .include "UART.S"
-.include "PCI.S"
 .include "HEX.S"
+.include "PCI.S"
 .include "VGA.S"
 
 # Function for all HARTs to announce themselves

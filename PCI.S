@@ -117,6 +117,7 @@ _pci_reg:
     j _setup_qemu_bridge
 
     # QEMU VGA
+    .byte  0x11, 0x11, 0x34, 0x12
     j _setup_qemu_vga
 
 
@@ -127,10 +128,4 @@ _setup_qemu_bridge:
     pop ra
     ret
 
-#_setup_qemu_vga:
- #   push ra
-  #  la a0, setup_qemu_vga
-   # call _write_newline
-    #pop ra 
-    #ret
 
