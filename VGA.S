@@ -19,7 +19,7 @@ _setup_qemu_vga:
 
     # Enable memory access
     lw a0, 0x04(t0)         # Access the memory mode register 
-    ori a0, a0, 0x02        # Enable the Odd/Even disable bi  
+    ori a0, a0, 0x02        # Enable the Odd/Even disable bit  
     sw a0, 0x04(t0)         # Store the loaded register with the bit enabled
     lw a0, 0x04(t0)         # load it to the VGA
 
@@ -86,7 +86,7 @@ _setup_qemu_vga:
 
     # Simple background
     la t0, _vga_framebuffer
-    li t2, 0x800080
+    li t2, 0
     _draw: 
     add t3, t0, t2
     li t1, 0xFFFFFFFFFFFFFFFF
